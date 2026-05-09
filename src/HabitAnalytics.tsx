@@ -1,22 +1,36 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Flame, Trophy, Activity, Target } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, Flame, Trophy, Activity } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
   Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
+  Filler,
+  Legend,
+  ScriptableContext
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Filler,
   Legend
-} from 'recharts';
+);
 import { 
   subDays, 
   format, 
-  eachDayOfInterval, 
   differenceInDays,
   startOfWeek
 } from 'date-fns';
+import ActivityCalendar from './ActivityCalendar';
 
 interface Habit {
   id: string;
@@ -32,43 +46,15 @@ interface Props {
 
 export default function HabitAnalytics({ habit, onClose, isDark }: Props) {
   const [chartView, setChartView] = useState<'weekly' | 'monthly'>('weekly');
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll the heatmap to the right (latest date) on mount
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
-    }
-  }, []);
-
-  // Generate last 75 weeks (~1.5 years) for full GitHub-style heatmap that fills ultrawide screens
-  const heatmapWeeks = useMemo(() => {
-    const end = new Date();
-    const start = startOfWeek(subDays(end, 75 * 7), { weekStartsOn: 1 });
-    const days = eachDayOfInterval({ start, end });
-    
-    const weeks = [];
-    for (let i = 0; i < days.length; i += 7) {
-      weeks.push(days.slice(i, i + 7));
-    }
-    return weeks;
-  }, []);
-
-  const monthLabels = useMemo(() => {
-    const labels: { name: string; colIndex: number }[] = [];
-    let currentMonth = -1;
-    heatmapWeeks.forEach((week, index) => {
-      const midWeekDate = week[3]; 
-      if (midWeekDate && midWeekDate.getMonth() !== currentMonth) {
-        currentMonth = midWeekDate.getMonth();
-        labels.push({
-          name: format(midWeekDate, 'MMM'),
-          colIndex: index
-        });
+  const heatmapData = useMemo(() => {
+    const data: Record<string, number> = {};
+    Object.keys(habit.completedDates).forEach(d => {
+      if (habit.completedDates[d]) {
+        data[d] = 100;
       }
     });
-    return labels;
-  }, [heatmapWeeks]);
+    return data;
+  }, [habit.completedDates]);
 
   // Calculate Streaks
   const stats = useMemo(() => {
@@ -156,6 +142,7 @@ export default function HabitAnalytics({ habit, onClose, isDark }: Props) {
       
       data.push({
         name: `${startStr}-${endStr}`,
+        fullDate: `${format(weekStart, 'MMMM dd, yyyy')} - ${format(weekEnd, 'MMMM dd, yyyy')}`,
         Done: completed,
         Missed: missed
       });
@@ -188,6 +175,7 @@ export default function HabitAnalytics({ habit, onClose, isDark }: Props) {
       
       data.push({
         name: format(d, 'MMM'),
+        fullDate: format(d, 'MMMM yyyy'),
         Done: completed,
         Missed: missed
       });
@@ -248,79 +236,8 @@ export default function HabitAnalytics({ habit, onClose, isDark }: Props) {
           </div>
         </div>
 
-        {/* GitHub Heatmap - Full Width */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-          <div className="flex items-center space-x-2 mb-6">
-            <Target className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Activity Calendar</h3>
-          </div>
-          
-          <div ref={scrollContainerRef} className="w-full overflow-x-auto pb-4 custom-scrollbar smooth-scroll">
-            <div className="min-w-max relative pl-8 pt-6">
-              {/* Month Labels */}
-              <div className="absolute top-0 left-8 right-0 flex text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                {monthLabels.map((label, idx) => (
-                  <div 
-                    key={idx} 
-                    className="absolute" 
-                    style={{ left: `${label.colIndex * 18}px` }}
-                  >
-                    {label.name}
-                  </div>
-                ))}
-              </div>
-
-              {/* Day Labels (Left Axis) */}
-              <div className="absolute left-0 top-6 bottom-0 flex flex-col justify-between text-[10px] font-medium text-slate-400 dark:text-slate-500 pb-1 h-[120px]">
-                <span className="invisible">Mon</span>
-                <span>Mon</span>
-                <span className="invisible">Wed</span>
-                <span>Wed</span>
-                <span className="invisible">Fri</span>
-                <span>Fri</span>
-                <span className="invisible">Sun</span>
-              </div>
-
-              {/* Grid Wrapper */}
-              <div className="flex gap-[4px]">
-                {heatmapWeeks.map((week, weekIdx) => (
-                  <div key={weekIdx} className="grid grid-rows-7 gap-[4px]">
-                    {week.map((date) => {
-                      if (!date) return <div key={Math.random()} className="w-[14px] h-[14px]" />; // Fallback
-
-                      const dateStr = format(date, 'yyyy-MM-dd');
-                      const isCompleted = habit.completedDates[dateStr];
-                      const isFuture = date > new Date();
-                      
-                      let colorClass = 'bg-slate-100 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/40'; // Default Empty
-                      if (isCompleted) {
-                        colorClass = 'bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-500 shadow-sm'; // Completed
-                      } else if (isFuture) {
-                        colorClass = 'bg-transparent border-transparent'; // Hide future dates completely
-                      }
-
-                      return (
-                        <div 
-                          key={dateStr}
-                          title={`${format(date, 'MMM dd, yyyy')}${isCompleted ? ' (Completed)' : ''}`}
-                          className={`w-[14px] h-[14px] rounded-[3px] transition-colors cursor-help ${colorClass}`}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end items-center space-x-2 mt-4 text-xs text-slate-400 dark:text-slate-500 font-medium px-2">
-            <span>Less</span>
-            <div className="w-[14px] h-[14px] rounded-[3px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></div>
-            <div className="w-[14px] h-[14px] rounded-[3px] bg-blue-300 dark:bg-blue-800"></div>
-            <div className="w-[14px] h-[14px] rounded-[3px] bg-blue-500 dark:bg-blue-600"></div>
-            <span>More</span>
-          </div>
-        </div>
+        {/* Activity Calendar Component */}
+        <ActivityCalendar title="Activity Calendar" data={heatmapData} />
 
         {/* Frequency Chart */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
@@ -343,57 +260,93 @@ export default function HabitAnalytics({ habit, onClose, isDark }: Props) {
           </div>
           
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activeChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#e2e8f0'} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fill: isDark ? '#94a3b8' : '#64748b' }}
-                  angle={-45}
-                  textAnchor="end"
-                  dy={10}
-                  dx={-5}
-                  height={50}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#64748b' }}
-                />
-                <Tooltip 
-                  cursor={false}
-                  contentStyle={{ 
-                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                    borderColor: isDark ? '#1e293b' : '#e2e8f0',
-                    color: isDark ? '#f8fafc' : '#0f172a',
-                    borderRadius: '12px', 
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
-                  }}
-                />
-                <Legend 
-                  verticalAlign="top" 
-                  align="right" 
-                  iconType="circle" 
-                  wrapperStyle={{ fontSize: '12px', paddingBottom: '20px' }} 
-                />
-                <Bar 
-                  dataKey="Done" 
-                  stackId="a" 
-                  fill={isDark ? '#2563eb' : '#3b82f6'} 
-                  radius={chartView === 'weekly' ? [0, 0, 4, 4] : [0, 0, 4, 4]} 
-                  barSize={32}
-                />
-                <Bar 
-                  dataKey="Missed" 
-                  stackId="a" 
-                  fill={isDark ? '#334155' : '#cbd5e1'} 
-                  radius={chartView === 'weekly' ? [4, 4, 0, 0] : [4, 4, 0, 0]} 
-                  barSize={32}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-72 w-full mt-4">
+            <Line 
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false,
+                  },
+                  tooltip: {
+                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    titleColor: isDark ? '#f8fafc' : '#0f172a',
+                    bodyColor: isDark ? '#cbd5e1' : '#475569',
+                    borderColor: isDark ? '#334155' : '#e2e8f0',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                      title: (tooltipItems) => {
+                        const idx = tooltipItems[0].dataIndex;
+                        return activeChartData[idx].fullDate;
+                      },
+                      label: (context) => {
+                        return `Consistent Days: ${context.raw}`;
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    grid: {
+                      display: false,
+                    },
+                    ticks: {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                      maxRotation: 45,
+                      minRotation: 45,
+                      font: { size: 10 }
+                    }
+                  },
+                  y: {
+                    border: { display: false },
+                    grid: {
+                      color: isDark ? '#334155' : '#e2e8f0',
+                    },
+                    ticks: {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                      stepSize: chartView === 'weekly' ? 1 : 5,
+                      font: { size: 12 },
+                      padding: 10
+                    },
+                    min: 0,
+                    max: chartView === 'weekly' ? 7 : 31,
+                  }
+                },
+                interaction: {
+                  intersect: false,
+                  mode: 'index',
+                },
+              }} 
+              data={{
+                labels: activeChartData.map(d => d.name),
+                datasets: [
+                  {
+                    fill: true,
+                    label: 'Done',
+                    data: activeChartData.map(d => d.Done),
+                    borderColor: isDark ? '#3b82f6' : '#2563eb',
+                    borderWidth: 3,
+                    pointBackgroundColor: isDark ? '#3b82f6' : '#2563eb',
+                    pointBorderColor: isDark ? '#0f172a' : '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.4,
+                    backgroundColor: (context: ScriptableContext<"line">) => {
+                      const ctx = context.chart.ctx;
+                      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                      gradient.addColorStop(0, isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(37, 99, 235, 0.3)');
+                      gradient.addColorStop(1, isDark ? 'rgba(59, 130, 246, 0)' : 'rgba(37, 99, 235, 0)');
+                      return gradient;
+                    }
+                  }
+                ]
+              }} 
+            />
+          </div>
           </div>
         </div>
 

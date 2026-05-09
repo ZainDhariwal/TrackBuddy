@@ -11,58 +11,62 @@ A blazing-fast, beautiful, and native macOS habit tracking application built to 
 
 ## ✨ Features
 
-- **Matrix UI:** A horizontal scrolling calendar matrix that allows you to log your daily habits with satisfying one-click tick/cross toggles.
-- **Deep Analytics Dashboard:** Click on any habit to dive into detailed performance metrics.
-- **GitHub-Style Heatmap:** A beautiful 1.5-year activity calendar to visualize your consistency over time.
-- **Frequency Analysis:** Stacked bar charts providing both Weekly and Monthly breakdowns of your completed vs. missed days.
-- **Streak Tracking:** Automatically calculates your *Current Streak*, *Best Streak*, and your *30-Day Completion Score*.
-- **Native Performance:** Built with Tauri & Rust, providing an ultra-lightweight and fast native macOS experience.
-- **Seamless Dark Mode:** A gorgeous, true-black dark theme built-in.
+- **Matrix UI Grid:** A beautiful, horizontally scrolling calendar matrix that allows you to log your daily habits with satisfying one-click tick/cross toggles.
+- **Deep Analytics Dashboard:** Click on any habit to dive into detailed performance metrics powered by interactive charts.
+- **Global Activity Calendar:** A GitHub-style contribution graph (heatmap) covering a 1.5-year span to visualize your consistency over time.
+- **Drag & Drop Sorting:** Reorder your habits effortlessly with a smooth drag-and-drop experience powered by `@dnd-kit`.
+- **Inline Operations:** Click the drag handle to open inline options to edit habit names or delete them safely.
+- **Native Confirmation Dialogs:** Uses native macOS dialog alerts for sensitive operations like deleting habits.
+- **Persistent Local Storage:** Migrated from fragile browser storage to Tauri's official JSON Store. Your data is saved securely in your system's `Application Support` folder, making it App Store ready.
+- **Seamless Dark Mode:** A gorgeous, true-black dark theme that respects your macOS system preferences.
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React, TypeScript, Vite
-- **Styling:** Tailwind CSS v4
-- **Backend/Native Core:** Tauri, Rust
-- **Charts & Data:** Recharts, date-fns
-- **Icons:** Lucide-React
+- **Frontend Framework:** React 19, TypeScript, Vite
+- **Styling:** Tailwind CSS v4 (with native glassmorphism and smooth micro-animations)
+- **Native Desktop Core:** Tauri v2 (Rust)
+- **Charts & Visualization:** Chart.js, React-Chartjs-2
+- **Data & Date Manipulation:** date-fns
+- **UI Interactions:** @dnd-kit (Sortable lists), Lucide-React (Icons)
+- **Native Plugins:** `@tauri-apps/plugin-store` (Secure file-based JSON persistence), `@tauri-apps/plugin-dialog` (Native system dialogs)
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Run on your Mac)
 
 ### Prerequisites
 Make sure you have the following installed on your machine:
-- [Node.js](https://nodejs.org/) (v16+)
-- [Rust](https://www.rust-lang.org/tools/install)
-- Xcode Command Line Tools (for macOS native build)
+1. **Node.js** (v18+ recommended) -> [Download here](https://nodejs.org/)
+2. **Rust** (Required for Tauri to compile the native app) -> Run `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` in terminal.
+3. **Xcode Command Line Tools** (For macOS compilation) -> Run `xcode-select --install` in terminal.
 
-### Installation
+### Installation & Local Run
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/trackbuddy.git
-   cd trackbuddy
+   git clone https://github.com/ZainDhariwal/TrackBuddy.git
+   cd TrackBuddy
    ```
 
-2. Install frontend dependencies:
+2. **Install frontend dependencies:**
    ```bash
    npm install
    ```
 
-3. Run the development server (This will compile the Rust backend and open the native window):
+3. **Run the development server:**
    ```bash
    npm run tauri dev
    ```
+   *Note: On the first run, Tauri will take a few minutes to download Rust crates and compile the backend. Subsequent launches will be near-instantaneous!*
 
 ## 📦 Building for Production
 
-To build a standalone `.app` or `.dmg` for macOS:
+To generate a standalone `.app` or `.dmg` installer for your macOS:
 ```bash
 npm run tauri build
 ```
-You will find the compiled binary in `src-tauri/target/release/bundle/`.
+Once the build is complete, you will find the compiled `.dmg` or `.app` in the following directory:
+`src-tauri/target/release/bundle/dmg/`
 
-## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/trackbuddy/issues).
+Move the file to your **Applications** folder and you are good to go!
 
 ---
 *Built with ❤️ for better daily habits.*
